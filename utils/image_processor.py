@@ -2,6 +2,7 @@ import numpy as np
 
 from .compression import RLECompressor, LZ77Compressor, HuffmanCompressor
 from .convolution import Convolution
+from .wavelet import HaarWavelet
 
 
 class RAWImage:
@@ -219,7 +220,7 @@ class ImageProcessor:
         processor = Convolution(kernel)
 
         def process(channel):
-            mtrx = channel.reshape(image.height, image.width)
+            mtrx = np.array(channel).reshape(image.height, image.width)
             new_mtrx = processor(mtrx)
             return np.array(new_mtrx).flatten()
 
@@ -227,10 +228,8 @@ class ImageProcessor:
             pixels_raw = process(image.pixels_raw)
 
         if image.color_mode == 3:
-            mtrx = image.to_matrix()
-            red_channel = mtrx[:, :, 0].flatten()
-            green_channel = mtrx[:, :, 1].flatten()
-            blue_channel = mtrx[:, :, 2].flatten()
+            green_channel = [image.pixels_raw[i] for i in range(1, image.height * image.width * 3, 3)]
+            blue_channel = [image.pixels_raw[i] for i in range(2, image.height * image.width * 3, 3)]
             red_convolved = process(red_channel)
             green_convolved = process(green_channel)
             blue_convolved = process(blue_channel)
@@ -267,3 +266,70 @@ class ImageProcessor:
         )
 
         return new_image
+
+    def pad_image(self, image, top=0, right=0, bottom=0, left=0):
+        mtrx = image.to_matrix()
+        image.width += left + right
+        image.height += top + bottom
+        if image.color_mode == 2:
+            image.pixels_raw = np.pad(mtrx, ((top, bottom), (left, right)), 'constant')
+
+        if image.color_mode == 3:
+            new_mtrx = np.pad(mtrx, ((top, bottom), (left, right), (0, 0)), 'constant')
+            image.pixels_raw = new_mtrx.flatten()
+
+        return image
+
+    def apply_haar(self, function, image, axis):
+        right, bottom = 0, 0
+        if image.width % 2:
+            right = 1
+        if image.height % 2:
+            bottom = 1
+
+        if right or bottom:
+            image = self.pad_image(image, right=right, bottom=bottom)
+
+        if image.color_mode == 2:
+            mtrx = image.to_matrix()
+            pixels_raw = np.apply_along_axis(function, axis, mtrx)
+
+        if image.color_mode == 3:
+            mtrx = image.to_matrix()
+            red_channel = mtrx[:, :, 0]
+            green_channel = mtrx[:, :, 1]
+            blue_channel = mtrx[:, :, 2]
+
+            new_red = np.apply_along_axis(function, axis, red_channel).flatten()
+            new_green = np.apply_along_axis(function, axis, green_channel).flatten()
+            new_blue = np.apply_along_axis(function, axis, blue_channel).flatten()
+
+            pixels_raw = np.array([[new_red[i], new_green[i], new_blue[i]] for i in range(len(new_red))]).flatten()
+
+        new_image = RAWImage(
+            color_mode=image.color_mode,
+            height=image.height,
+            width=image.width,
+            pixels_raw=pixels_raw
+        )
+
+        return new_image
+
+    def haar_encode(self, image, times):
+        processor = HaarWavelet()
+        vertically = image
+        while times:
+            horizontally = self.apply_haar(processor.encode, vertically, axis=0)
+            vertically = self.apply_haar(processor.encode, horizontally, axis=1)
+            times -= 1
+        return vertically
+
+    def haar_decode(self, image, times):
+        processor = HaarWavelet()
+        horizontally = image
+        while times:
+            vertically = self.apply_haar(processor.decode, horizontally, axis=1)
+            horizontally = self.apply_haar(processor.decode, vertically, axis=0)
+            times -= 1
+        horizontally.pixels_raw = np.abs(horizontally.pixels_raw).round(0).astype('uint8')
+        return horizontally
