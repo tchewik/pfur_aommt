@@ -11,5 +11,10 @@ To apply transform:
 
 To apply reconstruction:
 
-``python lab3.py --input pythons_wvl.ppm --output pythons_wvl.ppm --decode``
+``python lab3.py --input res/pythons_wvl.ppm --output pythons_wvl.ppm --decode``
 
+## Lab 4
+
+Usage example:
+
+``python lab4.py --input res/ahem_x_tmp.wav --apply_window --transform``
