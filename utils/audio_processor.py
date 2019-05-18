@@ -5,6 +5,8 @@
 import numpy as np
 import struct
 from .fourier_transform import Fourier
+import copy
+from .alpha_mu_laws import AlphaLaw, MuLaw
 
 
 class WAVAudio:
@@ -88,3 +90,21 @@ class AudioProcessorWAVE:
     def apply_hanna_window(self, audio):
         window = Fourier._hanna_window(audio.data)
         return window
+
+    def mu_law(self, audio, encode=True):
+        new_audio = copy.copy(audio)
+        processor = MuLaw()
+        if encode:
+            new_audio.data = processor.encode(audio.data)
+        else:
+            new_audio.data = processor.decode(audio.data)
+        return new_audio
+
+    def alpha_law(self, audio, encode=True):
+        new_audio = copy.copy(audio)
+        processor = AlphaLaw()
+        if encode:
+            new_audio.data = processor.encode(audio.data)
+        else:
+            new_audio.data = processor.decode(audio.data)
+        return new_audio
