@@ -18,3 +18,9 @@ To apply reconstruction:
 Usage example:
 
 ``python lab4.py --input res/ahem_x_tmp.wav --apply_window --transform``
+
+
+## Lab 5
+
+``python lab5.py --input res/ahem_x.wav --{encode|decode} --{alpha|mu}``
+
